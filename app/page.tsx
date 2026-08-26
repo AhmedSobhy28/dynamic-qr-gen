@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
-import QRCodeStyling, { DotType, CornerSquareType } from "qr-code-styling";
+import QRCodeStyling, { DotType, CornerSquareType, CornerDotType } from "qr-code-styling";
 import { Download, Link2, Scan, Palette, Image as ImageIcon, Wifi, Mail, CheckCircle2, LayoutTemplate, History, AlertCircle, RotateCcw, User, FileCode, QrCode, Trash2, Copy, Check, ArrowUpDown, Plus, ArrowLeft } from "lucide-react";
 
 // --- Helper Functions for WCAG Contrast Calculation ---
@@ -112,7 +112,7 @@ export default function QRGeneratorPro() {
   const contrastRatio = useMemo(() => calculateContrast(fgColor, bgColor), [fgColor, bgColor]);
 
   useEffect(() => {
-    if (isEmptyState) return;
+    if (isEmptyState || validationError) return;
     setIsGenerating(true);
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
@@ -126,8 +126,23 @@ export default function QRGeneratorPro() {
         dotsOptions: { color: fgColor, type: qrStyle },
         backgroundOptions: { color: bgColor },
         imageOptions: { crossOrigin: "anonymous", margin: 5, imageSize: 0.4 },
-        // 🔥 Vercel TypeScript Fix: Added 'as CornerSquareType'
-        cornersSquareOptions: { type: (qrStyle === "dots" ? "dot" : "square") as CornerSquareType, color: fgColor }
+                // 🔥 Vercel TypeScript Fix: Added 'as CornerSquareType'
+        cornersSquareOptions: {
+          type: (
+            qrStyle === "dots" ? "dot" :
+            qrStyle === "rounded" ? "extra-rounded" :
+            "square"
+          ) as CornerSquareType,
+          color: fgColor
+        },
+        cornersDotOptions: {
+          type: (
+            qrStyle === "dots" ? "dot" :
+            qrStyle === "rounded" ? "dot" :
+            "square"
+          ) as CornerDotType,
+          color: fgColor
+        }
       };
 
       if (!qrCodeInstance.current) {
@@ -143,8 +158,7 @@ export default function QRGeneratorPro() {
     }, 400);
 
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [url, wifiSsid, wifiPassword, wifiEncryption, emailTo, emailSubject, emailBody, vcardFName, vcardLName, vcardPhone, vcardCompany, vcardJob, activeTab, fgColor, bgColor, logo, qrStyle]);
-
+  }, [url, wifiSsid, wifiPassword, wifiEncryption, emailTo, emailSubject, emailBody, vcardFName, vcardLName, vcardPhone, vcardCompany, vcardJob, activeTab, fgColor, bgColor, logo, qrStyle, validationError]);
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
