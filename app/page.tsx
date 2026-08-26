@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
-import QRCodeStyling, { DotType } from "qr-code-styling";
+import QRCodeStyling, { DotType, CornerSquareType } from "qr-code-styling";
 import { Download, Link2, Scan, Palette, Image as ImageIcon, Wifi, Mail, CheckCircle2, LayoutTemplate, History, AlertCircle, RotateCcw, User, FileCode, QrCode, Trash2, Copy, Check, ArrowUpDown, Plus, ArrowLeft } from "lucide-react";
 
 // --- Helper Functions for WCAG Contrast Calculation ---
@@ -44,8 +44,8 @@ export default function QRGeneratorPro() {
   const [vcardJob, setVcardJob] = useState("");
 
   // Appearance Settings
-  const [fgColor, setFgColor] = useState("#4F46E5"); // Default Indigo
-  const [bgColor, setBgColor] = useState("#FFFFFF"); // Default White
+  const [fgColor, setFgColor] = useState("#4F46E5");
+  const [bgColor, setBgColor] = useState("#FFFFFF");
   const [logo, setLogo] = useState<string | null>(null);
   const [qrStyle, setQrStyle] = useState<DotType>("square");
   
@@ -109,7 +109,6 @@ export default function QRGeneratorPro() {
 
   const isEmptyState = (activeTab === "url" && !url) || (activeTab === "wifi" && !wifiSsid) || (activeTab === "email" && !emailTo) || (activeTab === "vcard" && !vcardFName);
   
-  // Calculate Contrast
   const contrastRatio = useMemo(() => calculateContrast(fgColor, bgColor), [fgColor, bgColor]);
 
   useEffect(() => {
@@ -127,7 +126,8 @@ export default function QRGeneratorPro() {
         dotsOptions: { color: fgColor, type: qrStyle },
         backgroundOptions: { color: bgColor },
         imageOptions: { crossOrigin: "anonymous", margin: 5, imageSize: 0.4 },
-        cornersSquareOptions: { type: qrStyle === "dots" ? "dot" : "square", color: fgColor }
+        // 🔥 Vercel TypeScript Fix: Added 'as CornerSquareType'
+        cornersSquareOptions: { type: (qrStyle === "dots" ? "dot" : "square") as CornerSquareType, color: fgColor }
       };
 
       if (!qrCodeInstance.current) {
@@ -363,10 +363,9 @@ export default function QRGeneratorPro() {
                           </div>
                         </button>
                       ))}
-                      <label className="relative group w-8 h-8 rounded-full border border-gray-600 border-dashed flex items-center justify-center cursor-pointer hover:border-gray-400 hover:bg-gray-800 transition-all ml-1">
+                      <label className="w-8 h-8 rounded-full border border-gray-600 border-dashed flex items-center justify-center cursor-pointer hover:border-gray-400 hover:bg-gray-800 transition-all ml-1">
                         <Plus className="w-4 h-4 text-gray-400" />
                         <input type="color" value={fgColor} onChange={(e) => setFgColor(e.target.value)} className="sr-only" />
-                        <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-20">Custom</div>
                       </label>
                     </div>
                   </div>
@@ -406,10 +405,9 @@ export default function QRGeneratorPro() {
                           </div>
                         </button>
                       ))}
-                      <label className="relative group w-8 h-8 rounded-full border border-gray-600 border-dashed flex items-center justify-center cursor-pointer hover:border-gray-400 hover:bg-gray-800 transition-all ml-1">
+                      <label className="w-8 h-8 rounded-full border border-gray-600 border-dashed flex items-center justify-center cursor-pointer hover:border-gray-400 hover:bg-gray-800 transition-all ml-1">
                         <Plus className="w-4 h-4 text-gray-400" />
                         <input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="sr-only" />
-                        <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-20">Custom</div>
                       </label>
                     </div>
                   </div>
