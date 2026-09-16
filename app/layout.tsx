@@ -21,9 +21,17 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-      suppressHydrationWarning 
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
+      suppressHydrationWarning
     >
+      <head>
+        {/* Applies the saved theme before first paint so there's no flash of the wrong mode. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem('qr_pro_theme');var el=document.documentElement;if(t==='light'){el.classList.remove('dark');}else{el.classList.add('dark');}}catch(e){}`,
+          }}
+        />
+      </head>
       <body suppressHydrationWarning>
         {children}
       </body>

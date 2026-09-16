@@ -1,8 +1,58 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------
+   Theme tokens. :root = light mode, .dark overrides = dark mode.
+   Toggled at runtime via a "dark" class on <html> (see page.tsx).
+   Accent is cyan/teal on purpose — no indigo/violet anywhere.
+   --------------------------------------------------------------- */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --page-bg-1: #eef3f8;
+  --page-bg-2: #e2e9f1;
+  --panel: rgba(255, 255, 255, 0.55);
+  --panel-strong: rgba(255, 255, 255, 0.78);
+  --panel-border: rgba(15, 23, 42, 0.10);
+  --panel-border-strong: rgba(15, 23, 42, 0.20);
+  --input-bg: rgba(255, 255, 255, 0.55);
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  --text-faint: #94a3b8;
+  --accent: #0e7490;
+  --accent-strong: #0891b2;
+  --accent-contrast: #ffffff;
+  --accent-soft: rgba(14, 116, 144, 0.10);
+  --accent-border: rgba(14, 116, 144, 0.28);
+  --accent-glow: rgba(14, 116, 144, 0.22);
+  --blob-1: rgba(56, 189, 248, 0.30);
+  --blob-2: rgba(45, 212, 191, 0.28);
+
+  --background: var(--page-bg-1);
+  --foreground: var(--text-primary);
+}
+
+.dark {
+  --page-bg-1: #05080f;
+  --page-bg-2: #0a1220;
+  --panel: rgba(13, 20, 32, 0.45);
+  --panel-strong: rgba(17, 24, 39, 0.72);
+  --panel-border: rgba(255, 255, 255, 0.08);
+  --panel-border-strong: rgba(255, 255, 255, 0.18);
+  --input-bg: rgba(3, 7, 15, 0.55);
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --text-faint: #64748b;
+  --accent: #22d3ee;
+  --accent-strong: #67e8f9;
+  --accent-contrast: #04141a;
+  --accent-soft: rgba(34, 211, 238, 0.12);
+  --accent-border: rgba(34, 211, 238, 0.30);
+  --accent-glow: rgba(34, 211, 238, 0.28);
+  --blob-1: rgba(34, 211, 238, 0.16);
+  --blob-2: rgba(20, 184, 166, 0.14);
+
+  --background: var(--page-bg-1);
+  --foreground: var(--text-primary);
 }
 
 @theme inline {
@@ -12,15 +62,115 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: light dark;
 }
 
 body {
-  background: var(--background);
+  background: linear-gradient(180deg, var(--page-bg-1) 0%, var(--page-bg-2) 100%) fixed;
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+/* Shared glass input style, used for every text/select field in the app */
+.input-glass {
+  background: var(--input-bg);
+  border: 1px solid var(--panel-border);
+  color: var(--text-primary);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.input-glass:hover {
+  border-color: var(--panel-border-strong);
+}
+.input-glass:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.input-glass::placeholder {
+  color: var(--text-faint);
+}
+
+/* Logo upload button */
+.logo-file-input::file-selector-button {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: none;
+  transition: background 0.2s ease;
+}
+.logo-file-input::file-selector-button:hover {
+  background: var(--accent-border);
+}
+
+/* History cards */
+.history-card:hover {
+  background: var(--panel-strong);
+  border-color: var(--accent-border);
+  box-shadow: 0 0 20px var(--accent-glow);
+}
+.history-actions {
+  background: linear-gradient(to left, var(--panel-strong) 0%, var(--panel-strong) 70%, transparent 100%);
+}
+
+/* Outline SVG export button fills with the accent on hover */
+.svg-btn:not(:disabled):hover {
+  background: var(--accent) !important;
+  color: var(--accent-contrast) !important;
+}
+
+/* Footer link — mirrors the PNG export button's gradient-fill hover for visual consistency */
+.footer-link {
+  isolation: isolate;
+}
+.footer-link:hover {
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+  background-image: linear-gradient(90deg, var(--accent), var(--accent-strong));
+  box-shadow: 0 8px 28px var(--accent-glow);
+}
+.footer-link-sheen {
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.35) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 0.7s ease;
+}
+.footer-link:hover .footer-link-sheen {
+  transform: translateX(120%);
+}
+
+/* ---------------------------------------------------------------
+   Theme toggle transition. The incoming theme is revealed as a
+   circle that expands outward from the point the toggle button
+   was clicked, so it visibly "floods" out from the button.
+   Driven by the View Transitions API — toggleTheme() in page.tsx
+   sets --theme-toggle-x / -y / -r before calling
+   document.startViewTransition().
+   --------------------------------------------------------------- */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-old(root) {
+  z-index: 1;
+}
+::view-transition-new(root) {
+  z-index: 2;
+  animation: theme-reveal 0.6s cubic-bezier(0.65, 0, 0.35, 1);
+}
+@keyframes theme-reveal {
+  from {
+    clip-path: circle(0px at var(--theme-toggle-x, 100%) var(--theme-toggle-y, 0%));
+  }
+  to {
+    clip-path: circle(var(--theme-toggle-r, 150%) at var(--theme-toggle-x, 100%) var(--theme-toggle-y, 0%));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+  }
 }

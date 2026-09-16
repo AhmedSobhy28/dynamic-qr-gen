@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import QRCodeStyling, { DotType, CornerSquareType, CornerDotType } from "qr-code-styling";
-import { Download, Link2, Scan, Palette, Image as ImageIcon, Wifi, Mail, CheckCircle2, LayoutTemplate, History, AlertCircle, RotateCcw, User, FileCode, QrCode, Trash2, Copy, Check, ArrowUpDown, Plus, ArrowLeft } from "lucide-react";
+import { Download, Link2, Scan, Palette, Image as ImageIcon, Wifi, Mail, CheckCircle2, LayoutTemplate, History, AlertCircle, RotateCcw, User, FileCode, QrCode, Trash2, Copy, Check, ArrowUpDown, Plus, ArrowLeft, Sun, Moon } from "lucide-react";
 
 // --- Helper Functions for WCAG Contrast Calculation ---
 const getRGB = (c: string) => {
@@ -44,22 +44,71 @@ export default function QRGeneratorPro() {
   const [vcardJob, setVcardJob] = useState("");
 
   // Appearance Settings
-  const [fgColor, setFgColor] = useState("#4F46E5");
+  const [fgColor, setFgColor] = useState("#0E7490");
   const [bgColor, setBgColor] = useState("#FFFFFF");
   const [logo, setLogo] = useState<string | null>(null);
   const [qrStyle, setQrStyle] = useState<DotType>("square");
-  
+
+  // Theme (light/dark)
+  const [theme, setTheme] = useState<"light" | "dark">("dark");
+  useEffect(() => {
+    const saved = localStorage.getItem("qr_pro_theme") as "light" | "dark" | null;
+    const initial = saved === "light" || saved === "dark" ? saved : "dark";
+    setTheme(initial);
+    document.documentElement.classList.toggle("dark", initial === "dark");
+  }, []);
+  const toggleTheme = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const next = theme === "dark" ? "light" : "dark";
+
+    const applyTheme = () => {
+      setTheme(next);
+      document.documentElement.classList.toggle("dark", next === "dark");
+      localStorage.setItem("qr_pro_theme", next);
+    };
+
+    // Where the click happened → the circle's origin, so the new theme
+    // visibly floods out from the toggle button itself.
+    const x = e.clientX;
+    const y = e.clientY;
+
+    const doc = document as Document & { startViewTransition?: (cb: () => void) => { ready: Promise<void> } };
+    const supportsViewTransitions = typeof doc.startViewTransition === "function";
+    const prefersReducedMotion = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    // Not supported (e.g. Firefox) or user prefers no motion → just flip the theme.
+    if (!supportsViewTransitions || prefersReducedMotion) {
+      applyTheme();
+      return;
+    }
+
+    const endRadius = Math.hypot(
+      Math.max(x, window.innerWidth - x),
+      Math.max(y, window.innerHeight - y)
+    );
+    document.documentElement.style.setProperty("--theme-toggle-x", `${x}px`);
+    document.documentElement.style.setProperty("--theme-toggle-y", `${y}px`);
+    document.documentElement.style.setProperty("--theme-toggle-r", `${endRadius}px`);
+
+    try {
+      doc.startViewTransition!(applyTheme);
+    } catch (err) {
+      // Never let a transition failure block the actual theme switch.
+      console.error("Theme view-transition failed, applying instantly:", err);
+      applyTheme();
+    }
+  };
+
   // Cohesive Palettes
   const presetFgColors = [
-    { name: "Indigo", hex: "#4F46E5" },
-    { name: "Violet", hex: "#7C3AED" },
+    { name: "Cyan", hex: "#0E7490" },
+    { name: "Teal", hex: "#0D9488" },
     { name: "Pink", hex: "#DB2777" },
     { name: "Emerald", hex: "#059669" },
     { name: "Orange", hex: "#EA580C" }
   ];
   const presetBgColors = [
     { name: "Pure White", hex: "#FFFFFF" },
-    { name: "Soft Indigo", hex: "#EEF2FF" },
+    { name: "Soft Cyan", hex: "#ECFEFF" },
     { name: "Soft Emerald", hex: "#ECFDF5" },
     { name: "Soft Pink", hex: "#FDF2F8" },
     { name: "Deep Navy", hex: "#0F172A" }
@@ -214,7 +263,7 @@ export default function QRGeneratorPro() {
   };
 
   const renderHistoryIcon = (tab: string) => {
-    const iconClass = "w-3 h-3 absolute -bottom-1 -right-1 bg-[#111827] text-gray-300 rounded-full p-0.5 border border-gray-800";
+    const iconClass = "w-3 h-3 absolute -bottom-1 -right-1 bg-[var(--panel)] text-[var(--text-secondary)] rounded-full p-0.5 border border-[var(--panel-border)]";
     switch(tab) {
       case 'url': return <Link2 className={iconClass} />;
       case 'wifi': return <Wifi className={iconClass} />;
@@ -237,24 +286,41 @@ export default function QRGeneratorPro() {
           animation: pulse-shimmer 1.5s ease-in-out infinite;
         }
         @keyframes pulse-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        ::selection { background: var(--accent-soft); color: var(--accent); }
       `}</style>
 
-      <div className="min-h-screen bg-[#0B0F19] text-gray-300 flex justify-center p-4 md:p-8 font-body selection:bg-indigo-500/30">
+      {/* Ambient background blobs — sit behind the glass panels so their blur has something to catch */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10">
+        <div className="absolute -top-32 -left-32 w-[420px] h-[420px] rounded-full blur-[120px]" style={{ background: "var(--blob-1)" }} />
+        <div className="absolute bottom-0 right-0 w-[380px] h-[380px] rounded-full blur-[120px]" style={{ background: "var(--blob-2)" }} />
+      </div>
+
+      {/* Theme Toggle */}
+      <button
+        onClick={toggleTheme}
+        title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+        className="fixed top-4 right-4 md:top-6 md:right-6 z-30 w-11 h-11 rounded-full flex items-center justify-center backdrop-blur-xl border transition-all duration-300 active:scale-90"
+        style={{ background: "var(--panel)", borderColor: "var(--panel-border)", color: "var(--accent)" }}
+      >
+        {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+      </button>
+
+      <div className="min-h-screen text-[var(--text-secondary)] flex justify-center p-4 md:p-8 font-body transition-colors duration-300">
         <div className="max-w-[1200px] w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
           {/* Left Side: Controls */}
           <div className="lg:col-span-7 flex flex-col gap-6">
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold mb-4 uppercase tracking-wider">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold mb-4 uppercase tracking-wider border backdrop-blur-md" style={{ background: "var(--accent-soft)", borderColor: "var(--accent-border)", color: "var(--accent)" }}>
                 <Scan className="w-3.5 h-3.5" /> Advanced QR Engine
               </div>
-              <h1 className="text-4xl md:text-5xl font-bold text-white mb-2 font-display tracking-tight">
-                Create <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">Dynamic</span> QR Codes.
+              <h1 className="text-4xl md:text-5xl font-bold mb-2 font-display tracking-tight" style={{ color: "var(--text-primary)" }}>
+                Create <span className="text-transparent bg-clip-text" style={{ backgroundImage: "linear-gradient(90deg, var(--accent-strong), var(--accent))" }}>Dynamic</span> QR Codes.
               </h1>
             </div>
 
             {/* Content Tabs */}
-            <div className="bg-[#111827] rounded-xl p-1.5 border border-gray-800/60 inline-flex w-full md:w-fit overflow-x-auto">
+            <div className="rounded-xl p-1.5 border backdrop-blur-xl inline-flex w-full md:w-fit overflow-x-auto" style={{ background: "var(--panel)", borderColor: "var(--panel-border)" }}>
               {[
                 { id: 'url', icon: Link2, label: 'Link' },
                 { id: 'wifi', icon: Wifi, label: 'Wi-Fi' },
@@ -264,7 +330,11 @@ export default function QRGeneratorPro() {
                 <button 
                   key={tab.id}
                   onClick={() => { setActiveTab(tab.id); setLogo(null); }}
-                  className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg transition-all duration-300 whitespace-nowrap active:scale-95 ${activeTab === tab.id ? "bg-[#1F2937] text-white shadow-md shadow-black/20" : "text-gray-500 hover:text-gray-300 hover:bg-white/5"}`}
+                  className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg transition-all duration-300 whitespace-nowrap active:scale-95"
+                  style={activeTab === tab.id
+                    ? { background: "var(--panel-strong)", color: "var(--text-primary)", boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }
+                    : { color: "var(--text-muted)" }
+                  }
                 >
                   <tab.icon className="w-4 h-4" /> {tab.label}
                 </button>
@@ -272,27 +342,27 @@ export default function QRGeneratorPro() {
             </div>
 
             {/* Inputs Section */}
-            <div className="bg-[#111827] p-6 md:p-8 rounded-2xl border border-gray-800/60 shadow-xl relative transition-all group-focus-within:border-gray-600/50">
+            <div className="p-6 md:p-8 rounded-2xl border backdrop-blur-xl shadow-xl relative transition-all" style={{ background: "var(--panel)", borderColor: "var(--panel-border)" }}>
               {activeTab === "url" && (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-400 transition-colors">Target URL</label>
-                  <input type="text" value={url} onChange={(e) => setUrl(e.target.value)} className={`w-full bg-[#0B0F19] border ${validationError && url ? 'border-red-500/50' : 'border-gray-700 hover:border-gray-600 focus:border-indigo-500'} text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all duration-300 shadow-inner`} placeholder="https://example.com" />
+                  <label className="text-sm font-medium transition-colors" style={{ color: "var(--text-muted)" }}>Target URL</label>
+                  <input type="text" value={url} onChange={(e) => setUrl(e.target.value)} className={`input-glass w-full rounded-xl px-4 py-3 transition-all duration-300 ${validationError && url ? 'border-red-500/50' : ''}`} placeholder="https://example.com" />
                 </div>
               )}
               {activeTab === "wifi" && (
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-400">Network Name (SSID)</label>
-                    <input type="text" value={wifiSsid} onChange={(e) => setWifiSsid(e.target.value)} className="w-full bg-[#0B0F19] border border-gray-700 hover:border-gray-600 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all duration-300 shadow-inner" placeholder="My_WiFi_Network" />
+                    <label className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>Network Name (SSID)</label>
+                    <input type="text" value={wifiSsid} onChange={(e) => setWifiSsid(e.target.value)} className="input-glass w-full rounded-xl px-4 py-3 transition-all duration-300" placeholder="My_WiFi_Network" />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-400">Password</label>
-                      <input type="password" value={wifiPassword} onChange={(e) => setWifiPassword(e.target.value)} className="w-full bg-[#0B0F19] border border-gray-700 hover:border-gray-600 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all duration-300 shadow-inner" placeholder="••••••••" />
+                      <label className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>Password</label>
+                      <input type="password" value={wifiPassword} onChange={(e) => setWifiPassword(e.target.value)} className="input-glass w-full rounded-xl px-4 py-3 transition-all duration-300" placeholder="••••••••" />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-400">Security</label>
-                      <select value={wifiEncryption} onChange={(e) => setWifiEncryption(e.target.value)} className="w-full bg-[#0B0F19] border border-gray-700 hover:border-gray-600 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all duration-300 shadow-inner appearance-none">
+                      <label className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>Security</label>
+                      <select value={wifiEncryption} onChange={(e) => setWifiEncryption(e.target.value)} className="input-glass w-full rounded-xl px-4 py-3 transition-all duration-300 appearance-none">
                         <option value="WPA">WPA/WPA2</option>
                         <option value="WEP">WEP</option>
                         <option value="nopass">None</option>
@@ -304,12 +374,12 @@ export default function QRGeneratorPro() {
               {activeTab === "email" && (
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-400">Recipient Email</label>
-                    <input type="email" value={emailTo} onChange={(e) => setEmailTo(e.target.value)} className="w-full bg-[#0B0F19] border border-gray-700 hover:border-gray-600 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all duration-300 shadow-inner" placeholder="hello@company.com" />
+                    <label className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>Recipient Email</label>
+                    <input type="email" value={emailTo} onChange={(e) => setEmailTo(e.target.value)} className="input-glass w-full rounded-xl px-4 py-3 transition-all duration-300" placeholder="hello@company.com" />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-400">Subject</label>
-                    <input type="text" value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} className="w-full bg-[#0B0F19] border border-gray-700 hover:border-gray-600 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all duration-300 shadow-inner" placeholder="Meeting inquiry" />
+                    <label className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>Subject</label>
+                    <input type="text" value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} className="input-glass w-full rounded-xl px-4 py-3 transition-all duration-300" placeholder="Meeting inquiry" />
                   </div>
                 </div>
               )}
@@ -317,26 +387,26 @@ export default function QRGeneratorPro() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-400">First Name</label>
-                      <input type="text" value={vcardFName} onChange={(e) => setVcardFName(e.target.value)} className="w-full bg-[#0B0F19] border border-gray-700 hover:border-gray-600 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all duration-300 shadow-inner" placeholder="Ahmed" />
+                      <label className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>First Name</label>
+                      <input type="text" value={vcardFName} onChange={(e) => setVcardFName(e.target.value)} className="input-glass w-full rounded-xl px-4 py-3 transition-all duration-300" placeholder="Ahmed" />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-400">Last Name</label>
-                      <input type="text" value={vcardLName} onChange={(e) => setVcardLName(e.target.value)} className="w-full bg-[#0B0F19] border border-gray-700 hover:border-gray-600 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all duration-300 shadow-inner" placeholder="Sobhy" />
+                      <label className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>Last Name</label>
+                      <input type="text" value={vcardLName} onChange={(e) => setVcardLName(e.target.value)} className="input-glass w-full rounded-xl px-4 py-3 transition-all duration-300" placeholder="Sobhy" />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-400">Phone Number</label>
-                    <input type="tel" value={vcardPhone} onChange={(e) => setVcardPhone(e.target.value)} className="w-full bg-[#0B0F19] border border-gray-700 hover:border-gray-600 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all duration-300 shadow-inner" placeholder="+20 100 000 0000" />
+                    <label className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>Phone Number</label>
+                    <input type="tel" value={vcardPhone} onChange={(e) => setVcardPhone(e.target.value)} className="input-glass w-full rounded-xl px-4 py-3 transition-all duration-300" placeholder="+20 100 000 0000" />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-400">Company</label>
-                      <input type="text" value={vcardCompany} onChange={(e) => setVcardCompany(e.target.value)} className="w-full bg-[#0B0F19] border border-gray-700 hover:border-gray-600 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all duration-300 shadow-inner" placeholder="Tech Solutions" />
+                      <label className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>Company</label>
+                      <input type="text" value={vcardCompany} onChange={(e) => setVcardCompany(e.target.value)} className="input-glass w-full rounded-xl px-4 py-3 transition-all duration-300" placeholder="Tech Solutions" />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-400">Job Title</label>
-                      <input type="text" value={vcardJob} onChange={(e) => setVcardJob(e.target.value)} className="w-full bg-[#0B0F19] border border-gray-700 hover:border-gray-600 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all duration-300 shadow-inner" placeholder="Software Engineer" />
+                      <label className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>Job Title</label>
+                      <input type="text" value={vcardJob} onChange={(e) => setVcardJob(e.target.value)} className="input-glass w-full rounded-xl px-4 py-3 transition-all duration-300" placeholder="Software Engineer" />
                     </div>
                   </div>
                 </div>
@@ -352,15 +422,15 @@ export default function QRGeneratorPro() {
             {/* Design & Branding Settings */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               
-              <div className="bg-[#111827] p-6 rounded-2xl border border-gray-800/60 shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-gray-700/60">
-                <h3 className="flex items-center gap-2 text-[15px] font-semibold text-gray-200 mb-6"><Palette className="w-4 h-4 text-indigo-400" /> Brand Colors</h3>
+              <div className="p-6 rounded-2xl border backdrop-blur-xl shadow-xl transition-all duration-300" style={{ background: "var(--panel)", borderColor: "var(--panel-border)" }}>
+                <h3 className="flex items-center gap-2 text-[15px] font-semibold mb-6" style={{ color: "var(--text-primary)" }}><Palette className="w-4 h-4" style={{ color: "var(--accent)" }} /> Brand Colors</h3>
                 
                 <div className="flex flex-col">
                   {/* Foreground Section */}
                   <div className="mb-4">
                     <div className="flex items-center justify-between mb-4">
-                      <span className="text-sm font-medium text-gray-300">Foreground</span>
-                      <div className="text-xs text-gray-400 bg-[#0B0F19] px-3 py-1.5 rounded-lg border border-gray-700/60 uppercase tracking-wider font-mono">
+                      <span className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>Foreground</span>
+                      <div className="text-xs px-3 py-1.5 rounded-lg border uppercase tracking-wider font-mono" style={{ color: "var(--text-muted)", background: "var(--input-bg)", borderColor: "var(--panel-border)" }}>
                         {fgColor}
                       </div>
                     </div>
@@ -369,16 +439,16 @@ export default function QRGeneratorPro() {
                         <button 
                           key={color.hex} 
                           onClick={() => setFgColor(color.hex)} 
-                          className={`relative group w-8 h-8 rounded-full transition-all duration-200 ${fgColor.toUpperCase() === color.hex.toUpperCase() ? 'ring-2 ring-[#4F46E5] ring-offset-[3px] ring-offset-[#111827]' : 'hover:scale-110'}`} 
-                          style={{ backgroundColor: color.hex }} 
+                          className="relative group w-8 h-8 rounded-full transition-all duration-200 hover:scale-110"
+                          style={{ backgroundColor: color.hex, boxShadow: fgColor.toUpperCase() === color.hex.toUpperCase() ? `0 0 0 2px var(--panel), 0 0 0 4px var(--accent)` : undefined }}
                         >
-                          <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-20">
+                          <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-900 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-20">
                             {color.name}
                           </div>
                         </button>
                       ))}
-                      <label className="w-8 h-8 rounded-full border border-gray-600 border-dashed flex items-center justify-center cursor-pointer hover:border-gray-400 hover:bg-gray-800 transition-all ml-1">
-                        <Plus className="w-4 h-4 text-gray-400" />
+                      <label className="w-8 h-8 rounded-full border border-dashed flex items-center justify-center cursor-pointer transition-all ml-1" style={{ borderColor: "var(--panel-border-strong)" }}>
+                        <Plus className="w-4 h-4" style={{ color: "var(--text-muted)" }} />
                         <input type="color" value={fgColor} onChange={(e) => setFgColor(e.target.value)} className="sr-only" />
                       </label>
                     </div>
@@ -386,11 +456,12 @@ export default function QRGeneratorPro() {
 
                   <div className="relative flex items-center justify-center py-2">
                     <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-gray-800/60"></div>
+                      <div className="w-full border-t" style={{ borderColor: "var(--panel-border)" }}></div>
                     </div>
                     <button 
                       onClick={() => { const temp = fgColor; setFgColor(bgColor); setBgColor(temp); }}
-                      className="relative flex items-center justify-center w-8 h-8 rounded-full bg-[#111827] border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500 transition-all active:scale-95"
+                      className="relative flex items-center justify-center w-8 h-8 rounded-full border backdrop-blur-md transition-all active:scale-95"
+                      style={{ background: "var(--panel)", borderColor: "var(--panel-border-strong)", color: "var(--text-muted)" }}
                       title="Swap Colors"
                     >
                       <ArrowUpDown className="w-4 h-4" />
@@ -400,8 +471,8 @@ export default function QRGeneratorPro() {
                   {/* Background Section */}
                   <div className="mt-4">
                     <div className="flex items-center justify-between mb-4">
-                      <span className="text-sm font-medium text-gray-300">Background</span>
-                      <div className="text-xs text-gray-400 bg-[#0B0F19] px-3 py-1.5 rounded-lg border border-gray-700/60 uppercase tracking-wider font-mono">
+                      <span className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>Background</span>
+                      <div className="text-xs px-3 py-1.5 rounded-lg border uppercase tracking-wider font-mono" style={{ color: "var(--text-muted)", background: "var(--input-bg)", borderColor: "var(--panel-border)" }}>
                         {bgColor}
                       </div>
                     </div>
@@ -410,17 +481,17 @@ export default function QRGeneratorPro() {
                         <button 
                           key={color.hex} 
                           onClick={() => setBgColor(color.hex)} 
-                          className={`relative group w-8 h-8 rounded-full transition-all duration-200 ${bgColor.toUpperCase() === color.hex.toUpperCase() ? 'ring-2 ring-[#4F46E5] ring-offset-[3px] ring-offset-[#111827]' : 'hover:scale-110'}`} 
-                          style={{ backgroundColor: color.hex }} 
+                          className="relative group w-8 h-8 rounded-full transition-all duration-200 hover:scale-110"
+                          style={{ backgroundColor: color.hex, boxShadow: bgColor.toUpperCase() === color.hex.toUpperCase() ? `0 0 0 2px var(--panel), 0 0 0 4px var(--accent)` : undefined }}
                         >
                            {color.hex === "#FFFFFF" && <div className="absolute inset-0 rounded-full border border-gray-300" />}
-                           <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-20">
+                           <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-900 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-20">
                             {color.name}
                           </div>
                         </button>
                       ))}
-                      <label className="w-8 h-8 rounded-full border border-gray-600 border-dashed flex items-center justify-center cursor-pointer hover:border-gray-400 hover:bg-gray-800 transition-all ml-1">
-                        <Plus className="w-4 h-4 text-gray-400" />
+                      <label className="w-8 h-8 rounded-full border border-dashed flex items-center justify-center cursor-pointer transition-all ml-1" style={{ borderColor: "var(--panel-border-strong)" }}>
+                        <Plus className="w-4 h-4" style={{ color: "var(--text-muted)" }} />
                         <input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="sr-only" />
                       </label>
                     </div>
@@ -436,15 +507,19 @@ export default function QRGeneratorPro() {
                 </div>
               </div>
 
-              <div className="bg-[#111827] p-5 rounded-2xl border border-gray-800/60 shadow-xl flex flex-col gap-5 transition-all duration-300 hover:shadow-2xl hover:border-gray-700/60">
+              <div className="p-5 rounded-2xl border backdrop-blur-xl shadow-xl flex flex-col gap-5 transition-all duration-300" style={{ background: "var(--panel)", borderColor: "var(--panel-border)" }}>
                 <div>
-                  <h3 className="flex items-center gap-2 text-[15px] font-semibold text-gray-200 mb-4"><LayoutTemplate className="w-4 h-4 text-indigo-400" /> Pattern Style</h3>
-                  <div className="grid grid-cols-3 gap-2 bg-[#0B0F19] rounded-xl p-1.5 border border-gray-700/60">
+                  <h3 className="flex items-center gap-2 text-[15px] font-semibold mb-4" style={{ color: "var(--text-primary)" }}><LayoutTemplate className="w-4 h-4" style={{ color: "var(--accent)" }} /> Pattern Style</h3>
+                  <div className="grid grid-cols-3 gap-2 rounded-xl p-1.5 border" style={{ background: "var(--input-bg)", borderColor: "var(--panel-border)" }}>
                     {["square", "dots", "rounded"].map((style) => (
                       <button 
                         key={style} 
                         onClick={() => setQrStyle(style as any)} 
-                        className={`py-2 text-xs font-medium rounded-lg capitalize transition-all duration-300 active:scale-95 ${qrStyle === style ? "bg-[#4F46E5] text-white shadow-md" : "text-gray-500 hover:text-gray-300 hover:bg-white/5"}`}
+                        className="py-2 text-xs font-medium rounded-lg capitalize transition-all duration-300 active:scale-95"
+                        style={qrStyle === style
+                          ? { background: "var(--accent)", color: "var(--accent-contrast)", boxShadow: "0 2px 8px var(--accent-glow)" }
+                          : { color: "var(--text-muted)" }
+                        }
                       >
                         {style}
                       </button>
@@ -452,8 +527,8 @@ export default function QRGeneratorPro() {
                   </div>
                 </div>
                 <div className="mt-2">
-                  <h3 className="flex items-center gap-2 text-[15px] font-semibold text-gray-200 mb-3"><ImageIcon className="w-4 h-4 text-indigo-400" /> Logo Insert</h3>
-                  <input type="file" accept="image/*" onChange={handleLogoUpload} className="w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-500/10 file:text-indigo-400 hover:file:bg-indigo-500/20 file:transition-all cursor-pointer" />
+                  <h3 className="flex items-center gap-2 text-[15px] font-semibold mb-3" style={{ color: "var(--text-primary)" }}><ImageIcon className="w-4 h-4" style={{ color: "var(--accent)" }} /> Logo Insert</h3>
+                  <input type="file" accept="image/*" onChange={handleLogoUpload} className="w-full text-xs file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:transition-all cursor-pointer logo-file-input" style={{ color: "var(--text-muted)" }} />
                   {logo && <button onClick={() => setLogo(null)} className="mt-3 text-[11px] text-red-400 hover:text-red-300 transition-colors font-medium">Remove Current Logo</button>}
                 </div>
               </div>
@@ -462,17 +537,17 @@ export default function QRGeneratorPro() {
             {/* History Section */}
             {history.length > 0 && (
               <div className="mt-2 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-400 mb-3"><History className="w-4 h-4" /> Recent Generations</h3>
+                <h3 className="flex items-center gap-2 text-sm font-semibold mb-3" style={{ color: "var(--text-muted)" }}><History className="w-4 h-4" /> Recent Generations</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                   {history.map((item) => (
-                    <div key={item.id} className="relative bg-[#111827] border border-gray-800/60 p-2.5 rounded-xl flex items-center justify-between group transition-all duration-300 hover:bg-[#151E2E] hover:border-indigo-500/50 hover:ring-2 hover:ring-indigo-500/30 hover:shadow-[0_0_20px_rgba(99,102,241,0.15)] overflow-hidden">
+                    <div key={item.id} className="history-card relative border p-2.5 rounded-xl flex items-center justify-between group transition-all duration-300 overflow-hidden backdrop-blur-md" style={{ background: "var(--panel)", borderColor: "var(--panel-border)" }}>
                       
                       <div className="flex items-center gap-3 w-full">
                         <div className="relative shrink-0 w-11 h-11">
                           {item.image ? (
                             <img src={item.image} alt="QR Thumbnail" className="w-full h-full object-cover rounded-lg bg-white p-0.5 shadow-sm" />
                           ) : (
-                            <div className="w-full h-full rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+                            <div className="w-full h-full rounded-lg flex items-center justify-center" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>
                               <Scan className="w-5 h-5" />
                             </div>
                           )}
@@ -480,20 +555,20 @@ export default function QRGeneratorPro() {
                         </div>
 
                         <div className="flex flex-col overflow-hidden transition-all duration-300 group-hover:pr-[90px]">
-                          <span className="text-xs font-semibold text-gray-300 capitalize">{item.tab}</span>
-                          <span className="text-[10px] text-gray-500 truncate w-full">{item.title}</span>
+                          <span className="text-xs font-semibold capitalize" style={{ color: "var(--text-secondary)" }}>{item.tab}</span>
+                          <span className="text-[10px] truncate w-full" style={{ color: "var(--text-muted)" }}>{item.title}</span>
                         </div>
                       </div>
 
                       {/* Hover Actions */}
-                      <div className="absolute right-0 inset-y-0 flex items-center gap-0.5 bg-gradient-to-l from-[#151E2E] via-[#151E2E] to-transparent pl-8 pr-2 opacity-0 group-hover:opacity-100 transition-all duration-300 z-10">
-                        <button onClick={() => copyToClipboard(item.id, item.rawData)} className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded-md transition-all active:scale-90" title="Copy Data">
+                      <div className="history-actions absolute right-0 inset-y-0 flex items-center gap-0.5 pl-8 pr-2 opacity-0 group-hover:opacity-100 transition-all duration-300 z-10">
+                        <button onClick={() => copyToClipboard(item.id, item.rawData)} className="p-1.5 rounded-md transition-all active:scale-90 hover:bg-[var(--panel-border-strong)] hover:text-[var(--text-primary)]" style={{ color: "var(--text-muted)" }} title="Copy Data">
                           {copiedId === item.id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                         </button>
-                        <button onClick={() => restoreHistoryItem(item)} className="p-1.5 text-gray-400 hover:text-indigo-400 hover:bg-indigo-500/20 rounded-md transition-all active:scale-90" title="Restore Settings">
+                        <button onClick={() => restoreHistoryItem(item)} className="p-1.5 rounded-md transition-all active:scale-90 hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]" style={{ color: "var(--text-muted)" }} title="Restore Settings">
                           <RotateCcw className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={() => deleteHistoryItem(item.id)} className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/20 rounded-md transition-all active:scale-90" title="Delete">
+                        <button onClick={() => deleteHistoryItem(item.id)} className="p-1.5 hover:text-red-400 hover:bg-red-500/20 rounded-md transition-all active:scale-90" style={{ color: "var(--text-muted)" }} title="Delete">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -506,21 +581,21 @@ export default function QRGeneratorPro() {
 
           {/* Right Side: Sticky Live Preview */}
           <div className="lg:col-span-5 lg:sticky lg:top-8 w-full">
-            <div className="bg-[#111827] rounded-3xl border border-gray-800/60 p-8 flex flex-col items-center justify-center shadow-2xl relative overflow-hidden min-h-[500px] transition-all duration-500 hover:shadow-[0_0_40px_rgba(99,102,241,0.05)]">
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-indigo-500/20 blur-[100px] rounded-full pointer-events-none"></div>
+            <div className="preview-panel rounded-3xl border p-8 flex flex-col items-center justify-center shadow-2xl relative overflow-hidden min-h-[500px] backdrop-blur-2xl transition-all duration-500" style={{ background: "var(--panel)", borderColor: "var(--panel-border)" }}>
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 blur-[100px] rounded-full pointer-events-none" style={{ background: "var(--accent-soft)" }}></div>
 
               <div className="relative z-10 w-full flex flex-col items-center">
-                <span className="text-[11px] font-semibold tracking-[0.2em] text-indigo-400/80 mb-6 uppercase flex items-center gap-2">
-                  <span className={`w-1.5 h-1.5 rounded-full transition-colors duration-500 ${isEmptyState ? 'bg-gray-600' : isGenerating ? 'bg-amber-500 animate-pulse' : 'bg-indigo-500'}`}></span>
+                <span className="text-[11px] font-semibold tracking-[0.2em] mb-6 uppercase flex items-center gap-2" style={{ color: "var(--accent)" }}>
+                  <span className={`w-1.5 h-1.5 rounded-full transition-colors duration-500 ${isEmptyState ? 'bg-gray-500' : isGenerating ? 'bg-amber-500 animate-pulse' : ''}`} style={!isEmptyState && !isGenerating ? { background: "var(--accent)" } : undefined}></span>
                   Live Preview
                 </span>
                 
                 {/* Visual States */}
                 <div className="relative w-[280px] h-[280px]">
                   {/* Empty State */}
-                  <div className={`absolute inset-0 flex flex-col items-center justify-center border-2 border-dashed border-gray-700/50 rounded-2xl bg-[#0B0F19]/50 transition-all duration-500 ${isEmptyState ? 'opacity-100 z-10' : 'opacity-0 scale-95 pointer-events-none z-0'}`}>
-                    <QrCode className="w-12 h-12 text-gray-600 mb-3" />
-                    <p className="text-sm font-medium text-gray-500">Enter data to generate</p>
+                  <div className={`absolute inset-0 flex flex-col items-center justify-center border-2 border-dashed rounded-2xl transition-all duration-500 ${isEmptyState ? 'opacity-100 z-10' : 'opacity-0 scale-95 pointer-events-none z-0'}`} style={{ borderColor: "var(--panel-border-strong)", background: "var(--input-bg)" }}>
+                    <QrCode className="w-12 h-12 mb-3" style={{ color: "var(--text-faint)" }} />
+                    <p className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>Enter data to generate</p>
                   </div>
 
                   {/* Loading State */}
@@ -537,13 +612,20 @@ export default function QRGeneratorPro() {
                   <button
                     onClick={() => downloadQR("png")}
                     disabled={downloadState !== "idle" || !!validationError || isEmptyState || isGenerating}
-                    className={`py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 text-xs transition-all duration-300 ${
+                    className={`py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 text-xs transition-all duration-300 border ${
                       validationError || isEmptyState || isGenerating
-                        ? "bg-gray-800/50 text-gray-500 cursor-not-allowed border border-gray-700/50 opacity-50" 
+                        ? "opacity-50 cursor-not-allowed" 
                         : downloadState === "png"
-                          ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/30"
-                          : "bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-400 hover:to-violet-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.2)] hover:shadow-[0_0_25px_rgba(99,102,241,0.35)] border border-transparent hover:-translate-y-1 active:translate-y-0 active:scale-95"
+                          ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
+                          : "border-transparent hover:-translate-y-1 active:translate-y-0 active:scale-95"
                     }`}
+                    style={
+                      validationError || isEmptyState || isGenerating
+                        ? { background: "var(--panel)", color: "var(--text-faint)", borderColor: "var(--panel-border)" }
+                        : downloadState === "png"
+                          ? undefined
+                          : { backgroundImage: "linear-gradient(90deg, var(--accent), var(--accent-strong))", color: "var(--accent-contrast)", boxShadow: "0 0 15px var(--accent-glow)" }
+                    }
                   >
                     {downloadState === "png" ? <CheckCircle2 className="w-4 h-4" /> : <Download className="w-4 h-4" />}
                     PNG
@@ -552,20 +634,27 @@ export default function QRGeneratorPro() {
                   <button
                     onClick={() => downloadQR("svg")}
                     disabled={downloadState !== "idle" || !!validationError || isEmptyState || isGenerating}
-                    className={`py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 text-xs transition-all duration-300 ${
+                    className={`svg-btn py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 text-xs transition-all duration-300 border-2 ${
                       validationError || isEmptyState || isGenerating
-                        ? "bg-gray-800/50 text-gray-500 cursor-not-allowed border border-gray-700/50 opacity-50"
+                        ? "opacity-50 cursor-not-allowed border-transparent"
                         : downloadState === "svg" 
-                          ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/30"
-                          : "bg-transparent border-2 border-indigo-500 text-indigo-400 hover:bg-indigo-500 hover:text-white shadow-[0_0_15px_rgba(99,102,241,0.15)] hover:-translate-y-1 active:translate-y-0 active:scale-95"
+                          ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
+                          : "bg-transparent hover:-translate-y-1 active:translate-y-0 active:scale-95"
                     }`}
+                    style={
+                      validationError || isEmptyState || isGenerating
+                        ? { background: "var(--panel)", color: "var(--text-faint)" }
+                        : downloadState === "svg"
+                          ? undefined
+                          : { borderColor: "var(--accent)", color: "var(--accent)", boxShadow: "0 0 15px var(--accent-glow)" }
+                    }
                   >
                     {downloadState === "svg" ? <CheckCircle2 className="w-4 h-4" /> : <FileCode className="w-4 h-4" />}
                     SVG
                   </button>
                 </div>
                 
-                <p className="text-gray-500 text-[10px] mt-5 flex items-center justify-center gap-1.5 w-full">
+                <p className="text-[10px] mt-5 flex items-center justify-center gap-1.5 w-full" style={{ color: "var(--text-muted)" }}>
                   <Scan className="w-3 h-3" /> No tracking. Runs 100% locally.
                 </p>
               </div>
@@ -573,15 +662,17 @@ export default function QRGeneratorPro() {
           </div>
 
           {/* --- TERMINAL FOOTER --- */}
-          <div className="col-span-1 lg:col-span-12 flex flex-col items-center justify-center mt-12 pt-10 border-t border-gray-800/30">
+          <div className="col-span-1 lg:col-span-12 flex flex-col items-center justify-center mt-12 pt-10 border-t" style={{ borderColor: "var(--panel-border)" }}>
             <a 
               href="https://ahmedsobhy28.github.io/portfolio/"
-              className="group relative flex items-center justify-center gap-3 px-8 py-4 bg-[#0B111B]/80 border border-[#00E5FF] text-[#00E5FF] font-mono text-xs sm:text-sm tracking-[0.2em] uppercase hover:bg-[#00E5FF]/10 transition-all duration-300 shadow-[0_0_15px_rgba(0,229,255,0.1)] hover:shadow-[0_0_25px_rgba(0,229,255,0.2)] overflow-hidden"
+              className="footer-link group relative flex items-center justify-center gap-3 px-8 py-4 rounded-2xl border backdrop-blur-md font-mono text-xs sm:text-sm font-semibold tracking-[0.2em] uppercase transition-all duration-300 overflow-hidden hover:-translate-y-1 active:translate-y-0 active:scale-95"
+              style={{ background: "var(--panel)", borderColor: "var(--accent-border)", color: "var(--accent)", boxShadow: "0 0 15px var(--accent-glow)" }}
             >
-              <ArrowLeft className="w-4 h-4 transition-transform duration-300 group-hover:-translate-x-1.5" />
+              <span className="footer-link-sheen absolute inset-0" aria-hidden="true" />
+              <ArrowLeft className="w-4 h-4 relative z-10 transition-transform duration-300 group-hover:-translate-x-1.5" />
               <span className="relative z-10">Terminate Session & Return to Root</span>
             </a>
-            <p className="mt-8 text-gray-500 font-mono text-[10px] sm:text-xs tracking-[0.25em] uppercase text-center">
+            <p className="mt-8 font-mono text-[10px] sm:text-xs tracking-[0.25em] uppercase text-center" style={{ color: "var(--text-muted)" }}>
               Engineered by Ahmed Sobhy // Web Developer & Architect
             </p>
           </div>
